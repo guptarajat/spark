@@ -55,6 +55,7 @@ class JobProgressListener(conf: SparkConf) extends SparkListener with Logging {
 
   // Applicatin:
   @volatile var startTime = -1L
+  var lastActivityTime = System.currentTimeMillis
 
   // Jobs:
   val activeJobs = new HashMap[JobId, JobUIData]
@@ -218,6 +219,7 @@ class JobProgressListener(conf: SparkConf) extends SparkListener with Logging {
     jobData.completionTime = Option(jobEnd.time).filter(_ >= 0)
 
     jobData.stageIds.foreach(pendingStages.remove)
+    lastActivityTime = System.currentTimeMillis
     jobEnd.jobResult match {
       case JobSucceeded =>
         completedJobs += jobData
