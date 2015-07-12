@@ -302,21 +302,21 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
 
   //application spark context will auto shutdown if its lying idle for this
   //much time
-  val appTimeoutSec = conf.getLong("spark.qubole.idle.timeout", -1) * 60
+  val appTimeoutSec = conf.getLong("spark.idle.timeout", -1) * 60
   if(appTimeoutSec > 0){
     class AppTimer(
       sc: SparkContext, 
       jobListener: JobProgressListener, 
-      appTimeout: Long) 
+      appTimeoutSec: Long) 
     extends Thread with Logging {
       override def run() {
         while (SparkEnv.get != null){
-          Thread.sleep(appTimeout*1000)
-          var idleTime = System.currentTimeMillis - jobListener.lastActivityTime 
-          logInfo("Idle Time is: " + idleTime + " and number of active jobs is: "
+          Thread.sleep(appTimeoutSec*1000)
+          var idleTimeMS = System.currentTimeMillis - jobListener.lastActivityTime 
+          logInfo("Idle Time is: " + idleTimeMS + " and number of active jobs is: "
             + jobListener.activeJobs.size)
-          if (jobListener.activeJobs.size == 0 && idleTime > appTimeout*1000){
-            sc.stopWithContext("Stopping Spark Context because its lying idle for long time")
+          if (jobListener.activeJobs.size == 0 && idleTimeMS > appTimeoutSec*1000){
+            sc.stop
           }
         }
       }
