@@ -300,6 +300,30 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   // Set SPARK_USER for user who is running SparkContext.
   val sparkUser = Utils.getCurrentUserName()
 
+  //application spark context will auto shutdown if its lying idle for this
+  //much time
+  val appTimeoutSec = conf.getLong("spark.idle.timeout", -1) * 60
+  if(appTimeoutSec > 0){
+    class AppTimer(
+      sc: SparkContext, 
+      jobListener: JobProgressListener, 
+      appTimeoutSec: Long) 
+    extends Thread with Logging {
+      override def run() {
+        while (SparkEnv.get != null){
+          Thread.sleep(appTimeoutSec*1000)
+          var idleTimeMS = System.currentTimeMillis - jobListener.lastActivityTime 
+          logInfo("Idle Time is: " + idleTimeMS + " and number of active jobs is: "
+            + jobListener.activeJobs.size)
+          if (jobListener.activeJobs.size == 0 && idleTimeMS > appTimeoutSec*1000){
+            sc.stop
+          }
+        }
+      }
+    }
+    new Thread(new AppTimer(this, jobProgressListener, appTimeoutSec)).start
+  }
+
   private[spark] def schedulerBackend: SchedulerBackend = _schedulerBackend
   private[spark] def schedulerBackend_=(sb: SchedulerBackend): Unit = {
     _schedulerBackend = sb
